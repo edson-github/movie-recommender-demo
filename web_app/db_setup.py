@@ -50,9 +50,9 @@ def create_dbs():
             db_handle = cloudant_client.create_database(db)
             if db_handle.exists():
                 print('Created database', db)
-       
+
                 # Make all dbs except for the Authentication DB readable by everyone
-                if not db == CL_AUTHDB:
+                if db != CL_AUTHDB:
                     print('Making {0} database readable by everyone'.format(db))
 
                     with SecurityDocument(db_handle) as security_document:
@@ -94,7 +94,7 @@ def populate_movie_db():
 def populate_rating_db():
 
     rating_file = 'data/ratings.dat'
-    
+
     rating_db = cloudant_client[CL_RATINGDB]
 
     max_user_id = 0
@@ -104,14 +104,14 @@ def populate_rating_db():
         while True:
             line = f.readline().strip()
 
-            if not line == '':
+            if line != '':
                 (user_id, movie_id, rating, timestamp) = line.split('::')
 
                 user_id = int(user_id)
 
                 if user_id > max_user_id:
                     max_user_id = user_id
-                
+
                 bulk_docs.append({
                     '_id': "user_{0}/movie_{1}".format(user_id, movie_id),
                     'rating': rating,

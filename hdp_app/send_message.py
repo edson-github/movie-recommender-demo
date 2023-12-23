@@ -41,8 +41,6 @@ try:
     record_metadata = future.get(timeout=10)
 except KafkaError:
     log.exception()
-    pass
-
 # Successful result returns assigned partition and offset
 print ('topic', record_metadata.topic)
 print ('partition', record_metadata.partition)
