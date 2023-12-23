@@ -47,13 +47,7 @@ def index():
 @main.route('/recommendations', methods=['GET', 'POST'])
 def recommendations():
 
-    user_id = current_user.get_id()
-
-    if not user_id:
-        flash('Recommendations are only available if you have an account.') 
-        return render_template('/main/recommendations.html', recommendations=[])
-
-    else:
+    if user_id := current_user.get_id():
         rated_movies = Rating.get_ratings(current_user.get_id())
 
         # the user needs to have rated some movies to be able to receive recommendations
@@ -74,9 +68,12 @@ def recommendations():
             return render_template('/main/recommendations.html', recommendations=[], timestamp=timestamp)
 
         if recommendation_type:
-            flash("Recommendation type: " + recommendation_type)
+            flash(f"Recommendation type: {recommendation_type}")
 
         return render_template('/main/recommendations.html', recommendations=recommendations, timestamp=timestamp)
+    else:
+        flash('Recommendations are only available if you have an account.')
+        return render_template('/main/recommendations.html', recommendations=[])
 
 @main.route('/search', methods=['POST'])
 def search():
@@ -101,10 +98,12 @@ def search():
 @login_required
 def set_rating():
 
-    if not request.json or \
-       not 'movie_id' in request.json or \
-       not 'user_id' in request.json or \
-       not 'rating' in request.json:
+    if (
+        not request.json
+        or 'movie_id' not in request.json
+        or 'user_id' not in request.json
+        or 'rating' not in request.json
+    ):
         abort(400)
 
     movie_id = request.json['movie_id']
@@ -214,10 +213,7 @@ def check_auth(username, password):
 
     user = User.find_by_email(username)
 
-    if user is not None and user.verify_password(password):
-        return True
-    else:
-        return False
+    return bool(user is not None and user.verify_password(password))
 
 # This method keeps a thread open for a long time which is
 # not ideal, but is the simplest way of checking.
@@ -228,24 +224,16 @@ def monitor():
     auth = request.authorization
     if not auth or not check_auth(auth.username, auth.password):
         data = { "error": "Permission denied." }
-        response = app.response_class(
-            response=json.dumps(data),
-            status=550,
-            mimetype='application/json'
+        return app.response_class(
+            response=json.dumps(data), status=550, mimetype='application/json'
         )
-        return response
-
     cursor = get_hive_cursor()
 
     if cursor is None:
         data = { "error": "Could not connect to Hive" }
-        response = app.response_class(
-            response=json.dumps(data),
-            status=500,
-            mimetype='application/json'
+        return app.response_class(
+            response=json.dumps(data), status=500, mimetype='application/json'
         )
-        return response
-
     timestamp = time.time()
 
     message = '{0},{1},{2}'.format(-1, -1, timestamp)
@@ -264,17 +252,11 @@ def monitor():
 
     if count == 1:
         data = { "ok": "App rating found in hadoop." }
-        response = app.response_class(
-            response=json.dumps(data),
-            status=200,
-            mimetype='application/json'
+        return app.response_class(
+            response=json.dumps(data), status=200, mimetype='application/json'
         )
-        return response
     else:
         data = { "error": "App rating not found in hadoop." }
-        response = app.response_class(
-            response=json.dumps(data),
-            status=500,
-            mimetype='application/json'
+        return app.response_class(
+            response=json.dumps(data), status=500, mimetype='application/json'
         )
-        return response

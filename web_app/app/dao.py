@@ -74,10 +74,7 @@ class MovieDAO:
         index_name = 'movie-search-index'
 
         end_point = '{0}/{1}/_design/{2}/_search/{2}'.format ( CL_URL, CL_MOVIEDB, index_name )
-        data = {
-            "q": "name:" + search_string,
-            "limit": 25
-        }
+        data = {"q": f"name:{search_string}", "limit": 25}
         headers = { "Content-Type": "application/json" }
         response = cloudant_client.r_session.post(end_point, data=json.dumps(data), headers=headers)
 
@@ -88,7 +85,7 @@ class MovieDAO:
                 movie_id = row['id']
                 movie_name = row['fields']['name']
                 movies[movie_id] = movie_name
-       
+
         return movies
 
 class RatingDAO:
@@ -122,16 +119,16 @@ class RatingDAO:
             for row in user_ratings['rows']:
 
                 movie_id = int(row['doc']['_id'].split('/')[1].split('_')[1])
-                rating = float(row['doc']['rating'])
+                if (
+                    movie_ids is not None
+                    and movie_id in movie_ids
+                    or movie_ids is None
+                ):
+                    rating = float(row['doc']['rating'])
 
-                if movie_ids is None:
-                    #  movie_ids filter wasn't provided so return all ratings
+                    # movie_ids filter was provided so only return the rating
+                    # if it is in the movie_ids list
                     ratings[movie_id] = rating
-                else:
-                    if movie_id in movie_ids:
-                        # movie_ids filter was provided so only return the rating
-                        # if it is in the movie_ids list
-                        ratings[movie_id] = rating
 
         return ratings
 
@@ -163,10 +160,9 @@ class RatingDAO:
             if rating:
                 document.update( { 'rating': rating, 'timestamp': current_milli_time() })
                 print('saved/updated rating', id)
-            else:
-                if document.exists():
-                    document.update( { '_deleted': True } )
-                    print('deleted rating', id)
+            elif document.exists():
+                document.update( { '_deleted': True } )
+                print('deleted rating', id)
 
 
 class RecommendationDAO:
@@ -228,7 +224,7 @@ class RecommendationDAO:
         except KeyError:
             print('recommendation_metadata doc not found in', CL_RECOMMENDDB)
             raise RecommendationsNotGeneratedException
-       
+
         # get name of db for latest recommendations
         try:
             latest_recommendations_db = meta_doc['latest_db']
@@ -241,16 +237,10 @@ class RecommendationDAO:
         try:
             recommendations_doc = recommendations_db[user_id]
 
-            # If the above ran without KeyError, recommendations were generated
-            # when the ALS model was trained and the recommendations were saved
-            # to Cloudant
-           
-            recommendations = {}
-            for rec in recommendations_doc['recommendations']: 
-                movie_id = int(rec[1])
-                predicted_rating = float(rec[2])
-                recommendations[movie_id] = predicted_rating
-
+            recommendations = {
+                int(rec[1]): float(rec[2])
+                for rec in recommendations_doc['recommendations']
+            }
             return { 'type'            : "als_recommendations",
                      'recommendations' : recommendations }
 
@@ -379,7 +369,7 @@ class UserDAO:
         doc = db.create_document(data)
 
         if not doc.exists():
-            raise BaseException("Coud not save user: " + data)
+            raise BaseException(f"Coud not save user: {data}")
 
         return doc['_id']
 

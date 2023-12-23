@@ -230,9 +230,7 @@ class User(UserMixin):
     @staticmethod
     def find_by_email(email):
 
-        user_dict = UserDAO.find_by_email(email)
-
-        if user_dict:
+        if user_dict := UserDAO.find_by_email(email):
             return User(
                         user_dict['user_id'],
                         email,
@@ -254,9 +252,7 @@ login_manager.anonymous_user = AnonymousUser
 @login_manager.user_loader
 def load_user(user_id):
 
-    user_dict = UserDAO.load_user(user_id)
-    
-    if user_dict:
+    if user_dict := UserDAO.load_user(user_id):
         return User(
                     user_id,
                     user_dict['email'],
